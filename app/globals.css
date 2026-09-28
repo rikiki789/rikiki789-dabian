@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fbfbf9;
+  --background: #fbfbf8;
   --foreground: #111214;
-  --muted: #81858d;
-  --line: rgba(17, 18, 20, 0.09);
-  --map-land: #e0e5eb;
-  --map-stroke: rgba(69, 79, 92, 0.22);
+  --muted: #878b93;
+  --hairline: rgba(17, 18, 20, 0.08);
+  --land: #e1e6eb;
+  --land-stroke: rgba(71, 80, 92, 0.2);
   --blue: #0b5dff;
 }
 
@@ -32,16 +32,16 @@ body {
   margin: 0;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% -8%, rgba(11, 93, 255, 0.075), transparent 31rem),
-    linear-gradient(180deg, #ffffff 0%, #f5f6f3 100%);
+    radial-gradient(circle at 50% 4%, rgba(11, 93, 255, 0.07), transparent 28rem),
+    linear-gradient(180deg, #ffffff 0%, #f7f7f3 100%);
   color: var(--foreground);
   font-family:
-    var(--font-geist-sans),
     -apple-system,
     BlinkMacSystemFont,
     "SF Pro Display",
     "SF Pro Text",
     "Helvetica Neue",
+    var(--font-geist-sans),
     Arial,
     sans-serif;
   letter-spacing: 0;
@@ -61,145 +61,203 @@ button {
   width: 100%;
   max-width: 430px;
   margin: 0 auto;
-  padding: max(16px, env(safe-area-inset-top)) 18px max(12px, env(safe-area-inset-bottom));
+  padding: max(16px, env(safe-area-inset-top)) 22px max(20px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
 }
 
 .topbar {
-  z-index: 2;
+  z-index: 5;
   display: flex;
   align-items: center;
-  min-height: 36px;
+  justify-content: center;
+  min-height: 38px;
 }
 
 .brand {
   color: var(--foreground);
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 760;
   letter-spacing: 0;
 }
 
-.home-screen {
+.state-stage {
+  position: relative;
+  z-index: 2;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding-top: 62px;
-}
-
-.hero-stat {
   display: grid;
-  gap: 4px;
-  justify-items: center;
 }
 
-.stat-label {
-  margin: 0;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 720;
-  letter-spacing: 0.16em;
-}
-
-h1 {
-  margin: 0;
-  color: var(--foreground);
-  font-size: clamp(108px, 34vw, 146px);
-  font-weight: 740;
-  line-height: 0.86;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.primary-action,
-.secondary-action {
-  width: 100%;
-  min-height: 58px;
-  margin-top: 32px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 760;
-  letter-spacing: 0.12em;
+.idle-state,
+.active-state {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   transition:
-    transform 180ms ease,
-    background 180ms ease,
-    border-color 180ms ease;
+    opacity 260ms ease,
+    transform 360ms cubic-bezier(0.2, 0.75, 0.16, 1);
 }
 
-.primary-action {
-  background: #111214;
-  color: #ffffff;
+.idle-state {
+  gap: 42px;
 }
 
-.secondary-action {
-  border: 1px solid rgba(17, 18, 20, 0.16);
-  background: rgba(255, 255, 255, 0.72);
-  color: #111214;
-  backdrop-filter: blur(20px);
-}
-
-.primary-action:active,
-.secondary-action:active,
-.map-preview:active,
-.tabbar button:active {
-  transform: scale(0.985);
-}
-
-.start-time {
+.identity-stack {
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: 10px;
-  min-height: 28px;
-  margin-top: 18px;
+  gap: 24px;
+  color: rgba(17, 18, 20, 0.52);
+  font-size: 15px;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
 }
 
-.start-time span {
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 720;
-  letter-spacing: 0.14em;
+.poop-action {
+  width: min(100%, 312px);
+  min-height: 64px;
+  border-radius: 999px;
+  background: #111214;
+  color: #fff;
+  cursor: pointer;
+  font-size: 19px;
+  font-weight: 680;
+  letter-spacing: 0;
+  box-shadow: 0 18px 38px rgba(17, 18, 20, 0.16);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
 }
 
-.start-time strong {
+.active-state {
+  gap: 30px;
+}
+
+.active-surface {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 390px;
+  place-items: center;
+  padding: 18px;
+  border-radius: 42px;
+  background:
+    radial-gradient(circle at 50% 52%, rgba(11, 93, 255, 0.09), transparent 44%),
+    rgba(255, 255, 255, 0.2);
   color: var(--foreground);
-  font-size: 17px;
-  font-weight: 640;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform 260ms cubic-bezier(0.2, 0.75, 0.16, 1),
+    background 260ms ease;
+}
+
+.active-surface::before,
+.active-surface::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 230px;
+  height: 230px;
+  border: 1px solid rgba(11, 93, 255, 0.1);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: surfacePulse 4.2s ease-in-out infinite;
+}
+
+.active-surface::after {
+  width: 310px;
+  height: 310px;
+  animation-delay: 1.2s;
+  opacity: 0.54;
+}
+
+.active-number {
+  z-index: 1;
+  margin-top: -16px;
+  font-size: clamp(148px, 48vw, 208px);
+  font-weight: 760;
+  line-height: 0.78;
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;
 }
 
-.map-preview {
-  width: 100%;
-  height: min(33svh, 270px);
-  min-height: 210px;
-  margin: auto 0 14px;
-  padding: 0;
-  overflow: hidden;
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at 50% 42%, rgba(11, 93, 255, 0.075), transparent 55%),
-    rgba(255, 255, 255, 0.42);
+.active-context {
+  z-index: 1;
+  margin-top: -22px;
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.active-start {
+  z-index: 1;
+  color: rgba(17, 18, 20, 0.5);
+  font-size: 15px;
+  font-weight: 580;
+  font-variant-numeric: tabular-nums;
+}
+
+.finish-action {
+  width: min(100%, 312px);
+  min-height: 58px;
+  border: 1px solid rgba(17, 18, 20, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--foreground);
   cursor: pointer;
-  transition: transform 180ms ease;
+  font-size: 17px;
+  font-weight: 640;
+  letter-spacing: 0;
+  backdrop-filter: blur(20px);
+  transition:
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.poop-action:active,
+.finish-action:active,
+.active-surface:active,
+.map-state:active {
+  transform: scale(0.985);
+}
+
+.map-state {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(14px, env(safe-area-inset-top)) 0 max(14px, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 50% 32%, rgba(11, 93, 255, 0.11), transparent 28rem),
+    #fbfbf8;
+  cursor: pointer;
+  animation: mapReveal 360ms cubic-bezier(0.2, 0.75, 0.16, 1) both;
 }
 
 .world-map {
-  width: 100%;
-  height: 100%;
-  filter: drop-shadow(0 22px 45px rgba(22, 31, 44, 0.08));
+  width: 120vw;
+  max-width: 780px;
+  height: 78svh;
+  max-height: 760px;
+  filter: drop-shadow(0 24px 48px rgba(22, 31, 44, 0.08));
 }
 
 .sphere {
-  fill: rgba(255, 255, 255, 0.5);
+  fill: rgba(255, 255, 255, 0.46);
   stroke: rgba(17, 18, 20, 0.055);
   stroke-width: 0.75;
 }
 
 .country {
-  fill: var(--map-land);
-  stroke: var(--map-stroke);
+  fill: var(--land);
+  stroke: var(--land-stroke);
   stroke-width: 0.55;
   vector-effect: non-scaling-stroke;
 }
@@ -207,11 +265,7 @@ h1 {
 .session-point {
   transform-box: fill-box;
   transform-origin: center;
-  animation: pointBreath 3.4s ease-in-out infinite;
-}
-
-.session-point.is-resonating {
-  animation: resonancePoint 1.9s ease-out infinite;
+  animation: pointPulse 3.4s ease-in-out infinite;
 }
 
 .point-glow {
@@ -224,109 +278,20 @@ h1 {
   stroke-width: 2.5;
 }
 
-.resonance-arc {
-  fill: none;
-  stroke: rgba(11, 93, 255, 0.22);
-  stroke-linecap: round;
-  stroke-width: 1.2;
-  vector-effect: non-scaling-stroke;
-  animation: arcFade 2.2s ease-out infinite;
+@keyframes surfacePulse {
+  0%,
+  100% {
+    opacity: 0.18;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+
+  50% {
+    opacity: 0.62;
+    transform: translate(-50%, -50%) scale(1.04);
+  }
 }
 
-.map-overlay {
-  position: fixed;
-  z-index: 20;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: max(14px, env(safe-area-inset-top)) 0 max(14px, env(safe-area-inset-bottom));
-  background:
-    radial-gradient(circle at 50% 30%, rgba(11, 93, 255, 0.1), transparent 28rem),
-    #fbfbf9;
-  animation: mapIn 260ms cubic-bezier(0.2, 0.75, 0.16, 1) both;
-}
-
-.world-map-full {
-  width: 118vw;
-  max-width: 760px;
-  height: 78svh;
-  max-height: 760px;
-}
-
-.subscreen {
-  flex: 1;
-  padding-top: 70px;
-}
-
-.subscreen h2 {
-  margin: 0 0 26px;
-  color: var(--foreground);
-  font-size: 42px;
-  font-weight: 720;
-  letter-spacing: 0;
-}
-
-.stat-list,
-.settings-list {
-  display: grid;
-  border-top: 1px solid var(--line);
-}
-
-.stat-list div,
-.settings-list button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 58px;
-  border-bottom: 1px solid var(--line);
-  background: transparent;
-  color: var(--foreground);
-  text-align: left;
-}
-
-.stat-list span,
-.settings-list button {
-  font-size: 16px;
-  font-weight: 560;
-}
-
-.stat-list strong {
-  font-size: 20px;
-  font-weight: 680;
-  font-variant-numeric: tabular-nums;
-}
-
-.tabbar {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  min-height: 48px;
-  padding: 4px;
-  border: 1px solid rgba(17, 18, 20, 0.08);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.68);
-  backdrop-filter: blur(20px);
-}
-
-.tabbar button {
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 680;
-  transition:
-    transform 180ms ease,
-    background 180ms ease,
-    color 180ms ease;
-}
-
-.tabbar button.is-selected {
-  background: #111214;
-  color: #ffffff;
-}
-
-@keyframes pointBreath {
+@keyframes pointPulse {
   0%,
   100% {
     opacity: 0.82;
@@ -337,29 +302,7 @@ h1 {
   }
 }
 
-@keyframes resonancePoint {
-  0%,
-  100% {
-    opacity: 0.8;
-  }
-
-  38% {
-    opacity: 1;
-  }
-}
-
-@keyframes arcFade {
-  0%,
-  100% {
-    opacity: 0;
-  }
-
-  35% {
-    opacity: 0.8;
-  }
-}
-
-@keyframes mapIn {
+@keyframes mapReveal {
   from {
     opacity: 0;
     transform: scale(0.985);
@@ -377,11 +320,7 @@ h1 {
     min-height: 100dvh;
   }
 
-  .map-preview {
-    height: min(33dvh, 270px);
-  }
-
-  .world-map-full {
+  .world-map {
     height: 78dvh;
   }
 }

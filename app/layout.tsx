@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WITHYOU",
+  title: "P∞P",
   description:
-    "A minimal realtime social app for the strange comfort of not pooping alone.",
+    "A minimal realtime iPhone app for the strange comfort of synchronous sessions.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

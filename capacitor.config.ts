@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "app.withyou.pooping",
-  appName: "WITHYOU",
+  appName: "P∞P",
   webDir: "dist",
   server: {
     url: "https://withyou-pooping-now.likeko.chatgpt.site",
@@ -11,12 +11,12 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: "always",
     limitsNavigationsToAppBoundDomains: true,
-    scheme: "WITHYOU",
+    scheme: "POOP",
   },
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
-      backgroundColor: "#050505",
+      backgroundColor: "#fbfbf9",
       showSpinner: false,
     },
     Haptics: {},

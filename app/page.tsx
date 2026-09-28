@@ -1,14 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { geoEqualEarth, geoPath } from "d3-geo";
+import { useEffect, useMemo, useState } from "react";
+import { feature } from "topojson-client";
+import world from "world-atlas/countries-110m.json";
 
-type View = "home" | "active" | "summary";
+type View = "idle" | "active" | "summary";
 
-const selfPoint = { name: "Your private session", x: 82, y: 42 };
+type GeometryCollection = {
+  type: "FeatureCollection";
+  features: Array<{
+    id?: string | number;
+    type: "Feature";
+    properties: Record<string, unknown>;
+    geometry: unknown;
+  }>;
+};
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat("en-US").format(value);
-}
+const mapWidth = 1000;
+const mapHeight = 720;
+const projection = geoEqualEarth().fitSize([mapWidth, mapHeight], {
+  type: "Sphere",
+});
+const path = geoPath(projection);
+
+const countries = feature(
+  world as unknown as Parameters<typeof feature>[0],
+  (world as { objects: { countries: unknown } }).objects.countries as Parameters<
+    typeof feature
+  >[1],
+) as unknown as GeometryCollection;
+
+const selfLocation = {
+  label: "Your session",
+  coordinates: [139.767, 35.681] as [number, number],
+};
 
 function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -16,53 +42,78 @@ function formatDuration(seconds: number) {
   return `${minutes}:${String(rest).padStart(2, "0")}`;
 }
 
-function WorldMap({ active = false }: { active?: boolean }) {
+function formatStartTime(date: Date | null) {
+  if (!date) {
+    return "--:--";
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function WorldMap({ active }: { active: boolean }) {
+  const point = projection(selfLocation.coordinates);
+
   return (
-    <div className="map-shell" aria-label="Realtime anonymous world map">
-      <div className="map-grid" />
-      <svg className="world-lines" viewBox="0 0 100 64" role="img">
-        <path d="M7 28 C16 18, 24 17, 34 23 C42 27, 42 36, 32 40 C21 45, 10 39, 7 28Z" />
-        <path d="M42 22 C49 13, 62 15, 66 25 C70 35, 63 43, 52 41 C42 39, 36 30, 42 22Z" />
-        <path d="M58 45 C63 40, 72 42, 75 50 C78 58, 70 63, 62 59 C56 56, 53 50, 58 45Z" />
-        <path d="M70 28 C77 18, 89 20, 93 32 C97 44, 86 52, 76 46 C68 41, 65 35, 70 28Z" />
-        <path d="M79 54 C86 50, 94 54, 96 60" />
+    <div className="map-stage" aria-label="Realtime global session map">
+      <svg className="world-map" viewBox={`0 0 ${mapWidth} ${mapHeight}`} role="img">
+        <defs>
+          <radialGradient id="pointGlow">
+            <stop offset="0%" stopColor="#0b5dff" stopOpacity="0.88" />
+            <stop offset="45%" stopColor="#5ba8ff" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="#5ba8ff" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <path className="sphere" d={path({ type: "Sphere" }) ?? undefined} />
+        {countries.features.map((country) => (
+          <path
+            className="country"
+            d={path(country as Parameters<typeof path>[0]) ?? undefined}
+            key={country.id}
+          />
+        ))}
+        {active && point && (
+          <g className="session-point" transform={`translate(${point[0]} ${point[1]})`}>
+            <circle className="point-glow" r="34" />
+            <circle className="point-core" r="5.8" />
+          </g>
+        )}
       </svg>
-      {active && (
-        <span
-          className="map-point is-you"
-          style={
-            {
-              "--x": `${selfPoint.x}%`,
-              "--y": `${selfPoint.y}%`,
-              "--delay": "0s",
-            } as React.CSSProperties
-          }
-          title={selfPoint.name}
-        />
-      )}
     </div>
   );
 }
 
 export default function Home() {
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>("idle");
   const [seconds, setSeconds] = useState(0);
+  const [startedAt, setStartedAt] = useState<Date | null>(null);
+
+  const isActive = view === "active";
+  const withYouNow = isActive ? 0 : 0;
 
   useEffect(() => {
-    if (view !== "active") {
+    if (!isActive) {
       return;
     }
 
     const id = window.setInterval(() => setSeconds((value) => value + 1), 1000);
     return () => window.clearInterval(id);
-  }, [view]);
+  }, [isActive]);
 
-  const activeCount = view === "active" ? 1 : 0;
-  const overlapCount = 0;
-  const peakCount = view === "summary" ? 1 : 0;
+  const statusLabel = useMemo(() => {
+    if (view === "summary") {
+      return "SESSION COMPLETE";
+    }
+
+    return isActive ? "SESSION ACTIVE" : "GLOBAL SESSION";
+  }, [isActive, view]);
 
   function startSession() {
     setSeconds(0);
+    setStartedAt(new Date());
     setView("active");
   }
 
@@ -73,82 +124,41 @@ export default function Home() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark" />
-          <span>WITHYOU</span>
-        </div>
-        <span className="signal">LIVE</span>
+        <span className="brand">P∞P</span>
+        <span className="screen-title">{statusLabel}</span>
       </header>
 
-      {view === "home" && (
-        <section className="hero" aria-labelledby="home-title">
-          <p className="eyebrow">YOU'RE NEVER POOPING ALONE.</p>
-          <h1 id="home-title">0</h1>
-          <p className="subtitle">people are pooping right now</p>
-          <WorldMap />
-          <button className="primary-action" onClick={startSession}>
-            START POOPING
-          </button>
-        </section>
-      )}
+      <section className="session-panel" aria-labelledby="with-you-title">
+        <div className="hero-stat">
+          <p className="stat-label">WITH YOU NOW</p>
+          <h1 id="with-you-title">{withYouNow}</h1>
+        </div>
 
-      {view === "active" && (
-        <section className="session" aria-labelledby="session-title">
-          <p className="eyebrow">ACTIVE SESSION</p>
-          <h1 id="session-title">{formatDuration(seconds)}</h1>
-          <p className="subtitle">waiting for the first overlap</p>
-          <WorldMap active />
-          <div className="metrics">
-            <div>
-              <span>{formatNumber(activeCount)}</span>
-              <p>POOPING NOW</p>
-            </div>
-            <div>
-              <span>{formatNumber(overlapCount)}</span>
-              <p>WITH YOU</p>
-            </div>
-            <div>
-              <span>0</span>
-              <p>NEARBY</p>
-            </div>
+        <div className="time-row">
+          <div>
+            <span>START</span>
+            <strong>{formatStartTime(startedAt)}</strong>
           </div>
-          <p className="quiet-note">
-            You are the first visible session. The world has not joined yet.
-          </p>
+          <div>
+            <span>DURATION</span>
+            <strong>{formatDuration(seconds)}</strong>
+          </div>
+        </div>
+      </section>
+
+      <WorldMap active={isActive} />
+
+      <div className="bottom-action">
+        {isActive ? (
           <button className="secondary-action" onClick={finishSession}>
             FINISH
           </button>
-        </section>
-      )}
-
-      {view === "summary" && (
-        <section className="summary" aria-labelledby="summary-title">
-          <p className="eyebrow">SESSION COMPLETE</p>
-          <h1 id="summary-title">{formatDuration(seconds)}</h1>
-          <p className="subtitle">first session recorded</p>
-          <div className="summary-panel">
-            <div>
-              <span>{formatNumber(overlapCount)}</span>
-              <p>simultaneous people</p>
-            </div>
-            <div>
-              <span>0</span>
-              <p>countries unlocked</p>
-            </div>
-            <div>
-              <span>{formatNumber(peakCount)}</span>
-              <p>maximum global active users</p>
-            </div>
-            <div>
-              <span>First Session</span>
-              <p>achievement unlocked</p>
-            </div>
-          </div>
+        ) : (
           <button className="primary-action" onClick={startSession}>
-            START AGAIN
+            START
           </button>
-        </section>
-      )}
+        )}
+      </div>
     </main>
   );
 }

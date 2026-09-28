@@ -1,23 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type View = "home" | "active" | "summary";
 
-const cities = [
-  { name: "Tokyo", country: "Japan", x: 82, y: 42, people: 428 },
-  { name: "Seoul", country: "Korea", x: 78, y: 40, people: 261 },
-  { name: "Singapore", country: "Singapore", x: 73, y: 61, people: 119 },
-  { name: "Paris", country: "France", x: 48, y: 38, people: 312 },
-  { name: "London", country: "United Kingdom", x: 45, y: 34, people: 386 },
-  { name: "New York", country: "United States", x: 27, y: 39, people: 502 },
-  { name: "Sao Paulo", country: "Brazil", x: 36, y: 72, people: 237 },
-  { name: "Sydney", country: "Australia", x: 84, y: 76, people: 171 },
-  { name: "Cairo", country: "Egypt", x: 55, y: 48, people: 142 },
-  { name: "Lagos", country: "Nigeria", x: 50, y: 59, people: 198 },
-  { name: "Mexico City", country: "Mexico", x: 20, y: 51, people: 154 },
-  { name: "Mumbai", country: "India", x: 66, y: 52, people: 340 },
-];
+const selfPoint = { name: "Your private session", x: 82, y: 42 };
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
@@ -40,41 +27,26 @@ function WorldMap({ active = false }: { active?: boolean }) {
         <path d="M70 28 C77 18, 89 20, 93 32 C97 44, 86 52, 76 46 C68 41, 65 35, 70 28Z" />
         <path d="M79 54 C86 50, 94 54, 96 60" />
       </svg>
-      {cities.map((city, index) => (
+      {active && (
         <span
-          className={`map-point ${active && index === 0 ? "is-you" : ""}`}
-          key={city.name}
+          className="map-point is-you"
           style={
             {
-              "--x": `${city.x}%`,
-              "--y": `${city.y}%`,
-              "--delay": `${index * 0.28}s`,
+              "--x": `${selfPoint.x}%`,
+              "--y": `${selfPoint.y}%`,
+              "--delay": "0s",
             } as React.CSSProperties
           }
-          title={`${city.name}, ${city.country}`}
+          title={selfPoint.name}
         />
-      ))}
+      )}
     </div>
   );
 }
 
 export default function Home() {
   const [view, setView] = useState<View>("home");
-  const [globalCount, setGlobalCount] = useState(18624);
   const [seconds, setSeconds] = useState(0);
-  const [bestCount, setBestCount] = useState(24812);
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setGlobalCount((current) => {
-        const next = Math.max(14000, current + Math.floor(Math.random() * 39) - 14);
-        setBestCount((best) => Math.max(best, next));
-        return next;
-      });
-    }, 1800);
-
-    return () => window.clearInterval(id);
-  }, []);
 
   useEffect(() => {
     if (view !== "active") {
@@ -85,10 +57,9 @@ export default function Home() {
     return () => window.clearInterval(id);
   }, [view]);
 
-  const overlapCount = useMemo(
-    () => Math.max(0, globalCount - 1 + Math.floor(seconds * 2.4)),
-    [globalCount, seconds],
-  );
+  const activeCount = view === "active" ? 1 : 0;
+  const overlapCount = 0;
+  const peakCount = view === "summary" ? 1 : 0;
 
   function startSession() {
     setSeconds(0);
@@ -112,7 +83,7 @@ export default function Home() {
       {view === "home" && (
         <section className="hero" aria-labelledby="home-title">
           <p className="eyebrow">YOU'RE NEVER POOPING ALONE.</p>
-          <h1 id="home-title">{formatNumber(globalCount)}</h1>
+          <h1 id="home-title">0</h1>
           <p className="subtitle">people are pooping right now</p>
           <WorldMap />
           <button className="primary-action" onClick={startSession}>
@@ -125,11 +96,11 @@ export default function Home() {
         <section className="session" aria-labelledby="session-title">
           <p className="eyebrow">ACTIVE SESSION</p>
           <h1 id="session-title">{formatDuration(seconds)}</h1>
-          <p className="subtitle">37 countries with you</p>
+          <p className="subtitle">waiting for the first overlap</p>
           <WorldMap active />
           <div className="metrics">
             <div>
-              <span>{formatNumber(globalCount)}</span>
+              <span>{formatNumber(activeCount)}</span>
               <p>POOPING NOW</p>
             </div>
             <div>
@@ -137,12 +108,12 @@ export default function Home() {
               <p>WITH YOU</p>
             </div>
             <div>
-              <span>12</span>
+              <span>0</span>
               <p>NEARBY</p>
             </div>
           </div>
           <p className="quiet-note">
-            Someone 8,430 km away started within the same minute.
+            You are the first visible session. The world has not joined yet.
           </p>
           <button className="secondary-action" onClick={finishSession}>
             FINISH
@@ -154,22 +125,22 @@ export default function Home() {
         <section className="summary" aria-labelledby="summary-title">
           <p className="eyebrow">SESSION COMPLETE</p>
           <h1 id="summary-title">{formatDuration(seconds)}</h1>
-          <p className="subtitle">you were not alone</p>
+          <p className="subtitle">first session recorded</p>
           <div className="summary-panel">
             <div>
               <span>{formatNumber(overlapCount)}</span>
               <p>simultaneous people</p>
             </div>
             <div>
-              <span>37</span>
+              <span>0</span>
               <p>countries unlocked</p>
             </div>
             <div>
-              <span>{formatNumber(bestCount)}</span>
+              <span>{formatNumber(peakCount)}</span>
               <p>maximum global active users</p>
             </div>
             <div>
-              <span>Not Alone</span>
+              <span>First Session</span>
               <p>achievement unlocked</p>
             </div>
           </div>

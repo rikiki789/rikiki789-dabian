@@ -69,9 +69,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>WKAppBoundDomains</key>
-	<array>
-		<string>withyou-pooping-now.likeko.chatgpt.site</string>
-	</array>
 </dict>
 </plist>

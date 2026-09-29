@@ -6,7 +6,6 @@ const config: CapacitorConfig = {
   webDir: "dist",
   ios: {
     contentInset: "always",
-    limitsNavigationsToAppBoundDomains: true,
     scheme: "POOP",
   },
   plugins: {

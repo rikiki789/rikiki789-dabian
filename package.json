@@ -11,7 +11,8 @@
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "ios:sync": "npm run build && cap sync ios",
+    "cap:prepare": "node scripts/prepare-capacitor.mjs",
+    "ios:sync": "npm run build && npm run cap:prepare && cap sync ios",
     "ios:open": "cap open ios",
     "db:generate": "drizzle-kit generate"
   },

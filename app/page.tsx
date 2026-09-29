@@ -1,12 +1,13 @@
 "use client";
 
-import { geoOrthographic, geoPath } from "d3-geo";
+import { geoEquirectangular, geoPath } from "d3-geo";
 import type { PointerEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { feature } from "topojson-client";
 import world from "world-atlas/countries-110m.json";
 
-type Mode = "idle" | "active" | "map" | "settings";
+type Screen = "home" | "session" | "flush" | "settings";
+type SessionPane = "paper" | "world";
 
 type GeometryCollection = {
   type: "FeatureCollection";
@@ -24,14 +25,24 @@ type Totals = {
   together: number;
 };
 
+type PublicPaper = {
+  id: string;
+  text: string;
+  likes: number;
+  createdAt: number;
+};
+
 type LivePoint = {
   id: string;
   coordinates: [number, number];
 };
 
-const globeSize = 1000;
-const storageKey = "poop-totals";
-const tokyoPoint: [number, number] = [139.767, 35.681];
+const totalsKey = "poop-totals";
+const publicPapersKey = "poop-public-papers";
+const oneDay = 24 * 60 * 60 * 1000;
+const mapWidth = 1000;
+const mapHeight = 680;
+const maxPaperLength = 200;
 
 const countries = feature(
   world as unknown as Parameters<typeof feature>[0],
@@ -40,233 +51,171 @@ const countries = feature(
   >[1],
 ) as unknown as GeometryCollection;
 
-function formatClock(date: Date | null) {
-  if (!date) {
-    return "--:--";
-  }
+const projection = geoEquirectangular().fitExtent(
+  [
+    [34, 118],
+    [966, 562],
+  ],
+  { type: "Sphere" },
+);
+const path = geoPath(projection);
 
-  return new Intl.DateTimeFormat("zh-CN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(date);
-}
-
-function formatMinutes(seconds: number) {
-  return Math.floor(seconds / 60).toLocaleString("zh-CN");
-}
-
-function getElapsedSeconds(startedAt: Date | null, now: number) {
-  if (!startedAt) {
-    return 0;
-  }
-
-  return Math.max(0, Math.floor((now - startedAt.getTime()) / 1000));
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
+function emptyTotals(): Totals {
+  return {
+    sessions: 0,
+    seconds: 0,
+    together: 0,
+  };
 }
 
 function loadTotals(): Totals {
   if (typeof window === "undefined") {
-    return {
-      sessions: 0,
-      seconds: 0,
-      together: 0,
-    };
+    return emptyTotals();
   }
 
-  const saved = window.localStorage.getItem(storageKey);
+  const saved = window.localStorage.getItem(totalsKey);
   if (!saved) {
-    return {
-      sessions: 0,
-      seconds: 0,
-      together: 0,
-    };
+    return emptyTotals();
   }
 
   try {
     return JSON.parse(saved) as Totals;
   } catch {
-    window.localStorage.removeItem(storageKey);
-    return {
-      sessions: 0,
-      seconds: 0,
-      together: 0,
-    };
+    window.localStorage.removeItem(totalsKey);
+    return emptyTotals();
   }
 }
 
-function pointIsVisible(
-  [lon, lat]: [number, number],
-  [rotationLon, rotationLat]: [number, number, number],
-) {
-  const toRad = Math.PI / 180;
-  const centerLon = -rotationLon * toRad;
-  const centerLat = -rotationLat * toRad;
-  const lonRad = lon * toRad;
-  const latRad = lat * toRad;
+function loadPublicPapers(): PublicPaper[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
 
-  const visibility =
-    Math.sin(latRad) * Math.sin(centerLat) +
-    Math.cos(latRad) * Math.cos(centerLat) * Math.cos(lonRad - centerLon);
+  const saved = window.localStorage.getItem(publicPapersKey);
+  if (!saved) {
+    return [];
+  }
 
-  return visibility > 0;
+  try {
+    return (JSON.parse(saved) as PublicPaper[]).filter(
+      (paper) => Date.now() - paper.createdAt < oneDay,
+    );
+  } catch {
+    window.localStorage.removeItem(publicPapersKey);
+    return [];
+  }
 }
 
-function WorldGlobe({
+function formatTotalTime(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}分钟`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours}小时${rest}分钟` : `${hours}小时`;
+}
+
+function formatElapsed(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes}分${rest}秒`;
+}
+
+function getElapsedSeconds(startedAt: number | null, now: number) {
+  if (!startedAt || !now) {
+    return 0;
+  }
+
+  return Math.max(0, Math.floor((now - startedAt) / 1000));
+}
+
+function WorldMap({
   points,
-  onTap,
+  onOpenPaper,
 }: {
   points: LivePoint[];
-  onTap: () => void;
+  onOpenPaper: () => void;
 }) {
-  const [rotation, setRotation] = useState<[number, number, number]>([
-    -135,
-    -24,
-    0,
-  ]);
-  const dragRef = useRef<{
-    x: number;
-    y: number;
-    rotation: [number, number, number];
-    moved: boolean;
-  } | null>(null);
-
-  const projection = useMemo(
-    () =>
-      geoOrthographic()
-        .translate([globeSize / 2, globeSize / 2])
-        .scale(455)
-        .rotate(rotation)
-        .clipAngle(90),
-    [rotation],
-  );
-  const path = useMemo(() => geoPath(projection), [projection]);
   const projected = points
-    .filter((point) => pointIsVisible(point.coordinates, rotation))
     .map((point) => ({ ...point, xy: projection(point.coordinates) }))
     .filter((point): point is LivePoint & { xy: [number, number] } =>
       Boolean(point.xy),
     );
 
-  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-      rotation,
-      moved: false,
-    };
-  }
-
-  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
-    const drag = dragRef.current;
-    if (!drag) {
-      return;
-    }
-
-    const dx = event.clientX - drag.x;
-    const dy = event.clientY - drag.y;
-    if (Math.abs(dx) + Math.abs(dy) > 6) {
-      drag.moved = true;
-    }
-
-    setRotation([
-      drag.rotation[0] + dx * 0.35,
-      clamp(drag.rotation[1] - dy * 0.25, -68, 68),
-      0,
-    ]);
-  }
-
-  function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
-    event.currentTarget.releasePointerCapture(event.pointerId);
-    const shouldTap = dragRef.current && !dragRef.current.moved;
-    dragRef.current = null;
-
-    if (shouldTap) {
-      onTap();
-    }
-  }
-
   return (
-    <div
-      className="globe-stage"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      role="button"
-      tabIndex={0}
-      aria-label="Live map"
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onTap();
-        }
-      }}
-    >
+    <button className="world-pane" onClick={onOpenPaper} aria-label="世界">
       <svg
-        className="world-globe"
-        viewBox={`0 0 ${globeSize} ${globeSize}`}
-        role="img"
+        className="world-map"
+        viewBox={`0 0 ${mapWidth} ${mapHeight}`}
         aria-hidden="true"
       >
         <defs>
-          <radialGradient id="oceanTone" cx="48%" cy="38%" r="62%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.96" />
-            <stop offset="70%" stopColor="#edf3f2" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#dce7e6" stopOpacity="0.96" />
-          </radialGradient>
-          <radialGradient id="pointGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#0a5bff" stopOpacity="0.9" />
-            <stop offset="46%" stopColor="#4fa7ff" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#4fa7ff" stopOpacity="0" />
+          <radialGradient id="mapPointGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#6b93c5" stopOpacity="0.64" />
+            <stop offset="52%" stopColor="#7fa7d6" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#7fa7d6" stopOpacity="0" />
           </radialGradient>
         </defs>
-        <path className="sphere" d={path({ type: "Sphere" }) ?? undefined} />
         {countries.features.map((country) => (
           <path
-            className="country"
+            className="map-country"
             d={path(country as Parameters<typeof path>[0]) ?? undefined}
             key={country.id}
           />
         ))}
         {projected.map((point) => (
           <g
-            className="session-point"
+            className="map-point"
             key={point.id}
             transform={`translate(${point.xy[0]} ${point.xy[1]})`}
           >
-            <circle className="point-glow" r="38" />
-            <circle className="point-core" r="6.2" />
+            <circle className="map-point-glow" r="28" />
+            <circle className="map-point-core" r="4.4" />
           </g>
         ))}
       </svg>
-    </div>
+    </button>
   );
 }
 
 export default function Home() {
-  const [mode, setMode] = useState<Mode>("idle");
-  const [previousMode, setPreviousMode] = useState<Mode>("idle");
-  const [startedAt, setStartedAt] = useState<Date | null>(null);
+  const [screen, setScreen] = useState<Screen>("home");
+  const [sessionPane, setSessionPane] = useState<SessionPane>("paper");
+  const [paperOpen, setPaperOpen] = useState(false);
+  const [thoughtOpen, setThoughtOpen] = useState(false);
+  const [thoughtIndex, setThoughtIndex] = useState(0);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
   const [now, setNow] = useState(0);
-  const [selfCoordinates, setSelfCoordinates] =
-    useState<[number, number]>(tokyoPoint);
+  const [paperText, setPaperText] = useState("");
   const [totals, setTotals] = useState<Totals>(loadTotals);
+  const [publicPapers, setPublicPapers] =
+    useState<PublicPaper[]>(loadPublicPapers);
+  const [selfCoordinates, setSelfCoordinates] =
+    useState<[number, number] | null>(null);
+  const horizontalSwipe = useRef<{ x: number; y: number } | null>(null);
+  const verticalSwipe = useRef<{ y: number } | null>(null);
 
-  const active = mode === "active" || mode === "map";
-  const withYouNow = 0;
+  const active = screen === "session" || screen === "flush";
   const elapsedSeconds = getElapsedSeconds(startedAt, now);
-  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-  const livePoints = active
-    ? [{ id: "self", coordinates: selfCoordinates }]
-    : [];
+  const globalCompanions = 0;
+  const currentThought = publicPapers[thoughtIndex] ?? null;
+  const livePoints =
+    screen === "session" && selfCoordinates
+      ? [{ id: "self", coordinates: selfCoordinates }]
+      : [];
+  const flushText = paperText.trim()
+    ? "一些厕中奇思和大便一起被冲走了"
+    : "一些烦恼和大便一起被冲走了";
 
   useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(totals));
+    window.localStorage.setItem(totalsKey, JSON.stringify(totals));
   }, [totals]);
+
+  useEffect(() => {
+    window.localStorage.setItem(publicPapersKey, JSON.stringify(publicPapers));
+  }, [publicPapers]);
 
   useEffect(() => {
     if (!active) {
@@ -277,31 +226,14 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [active]);
 
-  useEffect(() => {
-    if (mode !== "map") {
-      return;
-    }
-
-    window.history.pushState({ map: true }, "", "#map");
-    const closeOnBack = () => setMode("active");
-    window.addEventListener("popstate", closeOnBack);
-
-    return () => window.removeEventListener("popstate", closeOnBack);
-  }, [mode]);
-
-  function openSettings() {
-    setPreviousMode(mode);
-    setMode("settings");
-  }
-
-  function closeSettings() {
-    setMode(previousMode === "settings" ? "idle" : previousMode);
-  }
-
   function startSession() {
-    setStartedAt(new Date());
+    setStartedAt(Date.now());
     setNow(Date.now());
-    setMode("active");
+    setSessionPane("paper");
+    setPaperOpen(false);
+    setThoughtOpen(false);
+    setPaperText("");
+    setScreen("session");
 
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -317,126 +249,259 @@ export default function Home() {
     }
   }
 
-  function finishSession() {
-    const elapsed = Math.max(1, elapsedSeconds);
+  function enterFlush() {
+    setPaperOpen(false);
+    setThoughtOpen(false);
+    setScreen("flush");
+  }
+
+  function flushSession() {
+    const endedAt = Date.now();
+    const elapsed = startedAt
+      ? Math.max(1, Math.round((endedAt - startedAt) / 1000))
+      : 0;
+    const text = paperText.trim();
+
+    if (text) {
+      setPublicPapers((current) => [
+        {
+          id: `${endedAt}`,
+          text,
+          likes: 0,
+          createdAt: endedAt,
+        },
+        ...current,
+      ]);
+    }
 
     setTotals((current) => ({
       sessions: current.sessions + 1,
       seconds: current.seconds + elapsed,
-      together: current.together + withYouNow,
+      together: current.together + globalCompanions,
     }));
     setStartedAt(null);
-    setMode("idle");
+    setPaperText("");
+    setSelfCoordinates(null);
+    setScreen("home");
   }
 
-  function openMap() {
-    if (active) {
-      setMode("map");
-    }
-  }
-
-  function closeMap() {
-    if (window.location.hash === "#map") {
-      window.history.back();
+  function handleHorizontalStart(event: PointerEvent<HTMLDivElement>) {
+    if (paperOpen || thoughtOpen) {
       return;
     }
 
-    setMode("active");
+    horizontalSwipe.current = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+  }
+
+  function handleHorizontalEnd(event: PointerEvent<HTMLDivElement>) {
+    const start = horizontalSwipe.current;
+    horizontalSwipe.current = null;
+    if (!start || paperOpen || thoughtOpen) {
+      return;
+    }
+
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dx) < 42 || Math.abs(dx) < Math.abs(dy)) {
+      return;
+    }
+
+    setSessionPane(dx < 0 ? "world" : "paper");
+  }
+
+  function openWorldPaper() {
+    if (publicPapers.length === 0) {
+      return;
+    }
+
+    setThoughtIndex((index) => Math.min(index, publicPapers.length - 1));
+    setThoughtOpen(true);
+  }
+
+  function handleThoughtStart(event: PointerEvent<HTMLDivElement>) {
+    verticalSwipe.current = { y: event.clientY };
+  }
+
+  function handleThoughtEnd(event: PointerEvent<HTMLDivElement>) {
+    const start = verticalSwipe.current;
+    verticalSwipe.current = null;
+    if (!start || publicPapers.length < 2) {
+      return;
+    }
+
+    const dy = event.clientY - start.y;
+    if (Math.abs(dy) < 42) {
+      return;
+    }
+
+    setThoughtIndex((index) =>
+      dy < 0
+        ? (index + 1) % publicPapers.length
+        : (index - 1 + publicPapers.length) % publicPapers.length,
+    );
+  }
+
+  function reactToThought() {
+    if (!currentThought) {
+      return;
+    }
+
+    setPublicPapers((papers) =>
+      papers.map((paper) =>
+        paper.id === currentThought.id
+          ? { ...paper, likes: paper.likes + 1 }
+          : paper,
+      ),
+    );
   }
 
   return (
-    <main className={`app-shell mode-${mode}`}>
-      {mode !== "map" && (
-        <header className="topbar">
-          <button
-            className="brand-button"
-            onClick={() => setMode(active ? "active" : "idle")}
-          >
-            P∞P
-          </button>
-          {mode !== "settings" ? (
-            <button className="quiet-nav" onClick={openSettings}>
-              Settings
+    <main className={`app-shell screen-${screen}`}>
+      {screen === "home" && (
+        <>
+          <header className="home-top">
+            <span className="brand">P∞P</span>
+            <button className="settings-entry" onClick={() => setScreen("settings")}>
+              设置
             </button>
-          ) : (
-            <button className="quiet-nav" onClick={closeSettings}>
-              Done
+          </header>
+
+          <section className="home-screen" aria-label="首页">
+            <div className="totals-list">
+              <p>
+                <span>{totals.sessions.toLocaleString("zh-CN")}</span>
+                一共拉了几次
+              </p>
+              <p>
+                <span>{formatTotalTime(totals.seconds)}</span>
+                一共拉了多长时间
+              </p>
+              <p>
+                <span>{totals.together.toLocaleString("zh-CN")}人</span>
+                已经和多少人一起拉过
+              </p>
+            </div>
+            <button className="start-button" onClick={startSession}>
+              开拉
             </button>
-          )}
-        </header>
+          </section>
+        </>
       )}
 
-      <section className="state-stage" aria-live="polite">
-        {mode === "idle" && (
-          <div className="idle-state">
-            <div className="home-stats" aria-label="Personal totals">
-              <div className="home-primary-stat">
-                <span className="stat-value">
-                  {totals.together.toLocaleString("zh-CN")}
-                </span>
-                <span className="stat-label">
-                  到现在为止和 {totals.together.toLocaleString("zh-CN")} 人一起拉过屎
-                </span>
-              </div>
-              <div className="home-secondary-stats">
-                <div>
-                  <span>{totals.sessions.toLocaleString("zh-CN")}</span>
-                  <small>一共拉过 {totals.sessions.toLocaleString("zh-CN")} 次</small>
-                </div>
-                <div>
-                  <span>{formatMinutes(totals.seconds)}</span>
-                  <small>一共拉了 {formatMinutes(totals.seconds)} 分钟</small>
-                </div>
-              </div>
-            </div>
-            <button className="poop-action" onClick={startSession}>
-              Poop
-            </button>
+      {screen === "settings" && (
+        <section className="settings-screen" aria-label="设置">
+          <header className="settings-top">
+            <span>P∞P</span>
+            <button onClick={() => setScreen("home")}>完成</button>
+          </header>
+          <div className="settings-list">
+            {["语言", "通知", "账号", "隐私", "关于"].map((item) => (
+              <button className="settings-row" key={item}>
+                <span>{item}</span>
+                <span aria-hidden="true">›</span>
+              </button>
+            ))}
           </div>
-        )}
+        </section>
+      )}
 
-        {mode === "active" && (
-          <div className="active-state">
-            <button className="active-surface" onClick={openMap}>
-              <span className="active-kicker">
-                开始拉屎 {elapsedMinutes.toLocaleString("zh-CN")} 分钟
-              </span>
-              <span className="active-number">
-                {withYouNow.toLocaleString("zh-CN")}
-              </span>
-              <span className="active-context">人和你一起拉屎</span>
-              <span className="active-start">Start {formatClock(startedAt)}</span>
-            </button>
-            <button className="finish-action" onClick={finishSession}>
-              Finish
-            </button>
-          </div>
-        )}
-
-        {mode === "settings" && (
-          <div className="settings-state">
-            <div className="settings-title">
-              <span>Settings</span>
-              <small>P∞P</small>
-            </div>
-            <div className="settings-list">
-              {["Language", "Notifications", "Account", "Privacy", "About"].map(
-                (item) => (
-                  <button className="settings-row" key={item}>
-                    <span>{item}</span>
-                    <span aria-hidden="true">›</span>
+      {screen === "session" && (
+        <section
+          className="session-screen"
+          onPointerDown={handleHorizontalStart}
+          onPointerUp={handleHorizontalEnd}
+          aria-label="拉屎进行中"
+        >
+          <div
+            className="session-track"
+            style={{
+              transform:
+                sessionPane === "world" ? "translateX(-50%)" : "translateX(0)",
+            }}
+          >
+            <div className="session-slide">
+              {!paperOpen ? (
+                <div className="pooping-panel">
+                  <button
+                    className="paper-roll"
+                    onClick={() => setPaperOpen(true)}
+                    aria-label="厕纸"
+                  >
+                    <span className="roll-core" />
+                    <span className="paper-sheet">
+                      <span>{paperText}</span>
+                    </span>
                   </button>
-                ),
+                  <div className="session-lines">
+                    <p>开拉 {formatElapsed(elapsedSeconds)}</p>
+                    <p>和全球 {globalCompanions.toLocaleString("zh-CN")} 人一起拉</p>
+                  </div>
+                  <button className="done-button" onClick={enterFlush}>
+                    已拉完
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="paper-expanded"
+                  onClick={() => setPaperOpen(false)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="厕纸"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setPaperOpen(false);
+                    }
+                  }}
+                >
+                  <textarea
+                    value={paperText}
+                    maxLength={maxPaperLength}
+                    onChange={(event) => setPaperText(event.target.value)}
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="session-slide">
+              {!thoughtOpen ? (
+                <WorldMap points={livePoints} onOpenPaper={openWorldPaper} />
+              ) : (
+                <div
+                  className="thought-view"
+                  onPointerDown={handleThoughtStart}
+                  onPointerUp={handleThoughtEnd}
+                >
+                  <button
+                    className="thought-paper"
+                    onClick={() => setThoughtOpen(false)}
+                    aria-label="匿名厕纸"
+                  >
+                    <span>{currentThought?.text}</span>
+                  </button>
+                  {currentThought && (
+                    <button className="reaction-button" onClick={reactToThought}>
+                      ☺ {currentThought.likes.toLocaleString("zh-CN")}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
-      {mode === "map" && (
-        <div className="map-state">
-          <WorldGlobe points={livePoints} onTap={closeMap} />
-        </div>
+      {screen === "flush" && (
+        <section className="flush-screen" aria-label="冲水">
+          <p>{flushText}</p>
+          <button className="flush-button" onClick={flushSession} aria-label="冲水">
+            <span />
+          </button>
+        </section>
       )}
     </main>
   );

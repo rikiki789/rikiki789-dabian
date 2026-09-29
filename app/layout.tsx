@@ -1,22 +1,19 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Long_Cang } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const longCang = Long_Cang({
+  variable: "--font-hand",
+  weight: "400",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
+  fallback: ["Kaiti SC", "STKaiti", "KaiTi", "serif"],
 });
 
 export const metadata: Metadata = {
   title: "P∞P",
-  description:
-    "A minimal realtime iPhone app for the strange comfort of synchronous sessions.",
+  description: "一个干净、匿名、临时的共时 App。",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
@@ -29,7 +26,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   viewportFit: "cover",
   userScalable: false,
-  themeColor: "#fbfbf8",
+  themeColor: "#f2f5f5",
 };
 
 export default function RootLayout({
@@ -38,12 +35,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+    <html lang="zh-CN">
+      <body className={`${longCang.variable} antialiased`}>{children}</body>
     </html>
   );
 }

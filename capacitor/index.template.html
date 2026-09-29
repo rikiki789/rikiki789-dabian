@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <meta name="theme-color" content="#f2f5f5" />
+    <title>P∞P</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Long+Cang&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --background: #f2f5f5;
+        --ink: #1f2220;
+        --soft-ink: rgba(31, 34, 32, 0.58);
+        --hairline: rgba(31, 34, 32, 0.14);
+        --paper: #fbfaf4;
+        --paper-edge: rgba(31, 34, 32, 0.18);
+        --paper-warm: #f7f3ea;
+        --blue: #6f93bd;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        min-width: 320px;
+        min-height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 50% -14%, rgba(255, 255, 255, 0.96), transparent 28rem),
+          linear-gradient(180deg, #f7fafa 0%, var(--background) 100%);
+        color: var(--ink);
+        font-family:
+          "Long Cang",
+          "Kaiti SC",
+          STKaiti,
+          "KaiTi",
+          serif;
+        -webkit-font-smoothing: antialiased;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(31, 34, 32, 0.018) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(31, 34, 32, 0.014) 1px, transparent 1px);
+        background-size: 36px 36px;
+        opacity: 0.9;
+        -webkit-mask-image: radial-gradient(circle at 50% 42%, black, transparent 76%);
+        mask-image: radial-gradient(circle at 50% 42%, black, transparent 76%);
+      }
+
+      button,
+      textarea {
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        letter-spacing: 0;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .app {
+        position: relative;
+        width: 100%;
+        max-width: 430px;
+        min-height: 100svh;
+        margin: 0 auto;
+        overflow: hidden;
+        padding: max(15px, env(safe-area-inset-top)) 25px max(24px, env(safe-area-inset-bottom));
+      }
+
+      .home-top,
+      .settings-top {
+        min-height: 44px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+      }
+
+      .brand,
+      .settings-top span {
+        font-size: 27px;
+        line-height: 1;
+      }
+
+      .settings-entry,
+      .settings-top button {
+        justify-self: end;
+        min-height: 34px;
+        color: var(--soft-ink);
+        font-size: 23px;
+        line-height: 1;
+      }
+
+      .screen {
+        display: none;
+      }
+
+      .app[data-screen="home"] .home,
+      .app[data-screen="settings"] .settings,
+      .app[data-screen="session"] .session,
+      .app[data-screen="flush"] .flush {
+        display: grid;
+      }
+
+      .home,
+      .settings,
+      .flush {
+        min-height: calc(100svh - max(15px, env(safe-area-inset-top)) - max(24px, env(safe-area-inset-bottom)));
+      }
+
+      .home {
+        align-content: center;
+        gap: 58px;
+        padding-bottom: 34px;
+      }
+
+      .totals {
+        display: grid;
+        gap: 26px;
+      }
+
+      .totals p {
+        margin: 0;
+        display: grid;
+        gap: 5px;
+        color: var(--soft-ink);
+        font-size: 25px;
+        line-height: 1.1;
+      }
+
+      .totals span {
+        display: block;
+        color: var(--ink);
+        font-size: clamp(54px, 17vw, 74px);
+        line-height: 0.92;
+      }
+
+      .start,
+      .done {
+        width: 100%;
+        min-height: 70px;
+        border: 1px solid rgba(31, 34, 32, 0.22);
+        border-radius: 30px 28px 31px 27px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(236, 241, 241, 0.72)),
+          var(--background);
+        color: var(--ink);
+        font-size: 34px;
+        line-height: 1;
+        box-shadow:
+          0 18px 44px rgba(38, 45, 45, 0.08),
+          inset 0 1px 0 rgba(255, 255, 255, 0.96);
+      }
+
+      .settings {
+        align-content: start;
+        gap: 54px;
+      }
+
+      .settings-list {
+        display: grid;
+        border-top: 1px solid var(--hairline);
+      }
+
+      .settings-row {
+        min-height: 62px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        border-bottom: 1px solid var(--hairline);
+        color: var(--ink);
+        font-size: 28px;
+        text-align: left;
+      }
+
+      .settings-row span:last-child {
+        color: rgba(31, 34, 32, 0.34);
+        font-size: 31px;
+      }
+
+      .session {
+        position: absolute;
+        inset: 0;
+        padding: max(15px, env(safe-area-inset-top)) 0 max(24px, env(safe-area-inset-bottom));
+        overflow: hidden;
+      }
+
+      .track {
+        width: 200%;
+        height: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        transition: transform 460ms cubic-bezier(0.22, 0.8, 0.2, 1);
+      }
+
+      .slide {
+        min-width: 0;
+        height: 100%;
+        padding: 0 25px;
+        display: grid;
+      }
+
+      .pooping {
+        height: 100%;
+        display: grid;
+        align-content: center;
+        justify-items: center;
+        gap: 34px;
+        padding-bottom: 18px;
+      }
+
+      .paper-roll {
+        position: relative;
+        width: min(76vw, 292px);
+        height: 244px;
+        display: grid;
+        place-items: center;
+        overflow: visible;
+      }
+
+      .roll-core {
+        position: absolute;
+        top: 4px;
+        left: 50%;
+        width: 134px;
+        height: 104px;
+        border: 2px solid var(--paper-edge);
+        border-radius: 50%;
+        background:
+          radial-gradient(ellipse at 50% 48%, rgba(31, 34, 32, 0.06) 0 22%, transparent 23%),
+          linear-gradient(180deg, #fffef8, var(--paper-warm));
+        transform: translateX(-50%) rotate(-1deg);
+        box-shadow: inset 0 -8px 16px rgba(31, 34, 32, 0.04);
+      }
+
+      .roll-core::after {
+        content: "";
+        position: absolute;
+        inset: 30px 43px;
+        border: 1.5px solid rgba(31, 34, 32, 0.14);
+        border-radius: 50%;
+      }
+
+      .paper-sheet {
+        position: absolute;
+        top: 76px;
+        width: 214px;
+        min-height: 150px;
+        padding: 28px 24px;
+        border: 1.5px solid rgba(31, 34, 32, 0.14);
+        border-radius: 8px 9px 12px 10px;
+        background:
+          linear-gradient(90deg, transparent 0 31%, rgba(31, 34, 32, 0.03) 32%, transparent 33% 66%, rgba(31, 34, 32, 0.025) 67%, transparent 68%),
+          linear-gradient(180deg, var(--paper), #f8f5ed);
+        box-shadow: 0 18px 38px rgba(38, 45, 45, 0.07);
+      }
+
+      .paper-sheet::after {
+        content: "";
+        position: absolute;
+        left: 13px;
+        right: 13px;
+        bottom: 12px;
+        border-bottom: 1.5px dashed rgba(31, 34, 32, 0.12);
+      }
+
+      .paper-sheet span {
+        display: -webkit-box;
+        overflow: hidden;
+        color: rgba(31, 34, 32, 0.72);
+        font-size: 23px;
+        line-height: 1.15;
+        text-align: left;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+      }
+
+      .lines {
+        display: grid;
+        gap: 8px;
+        text-align: center;
+      }
+
+      .lines p {
+        margin: 0;
+        font-size: 35px;
+        line-height: 1.04;
+      }
+
+      .lines p + p {
+        color: var(--soft-ink);
+        font-size: 28px;
+      }
+
+      .paper-expanded {
+        display: none;
+        align-self: center;
+        justify-self: center;
+        position: relative;
+        width: min(86vw, 340px);
+        height: min(72svh, 620px);
+        padding: 38px 30px;
+        border: 1.5px solid rgba(31, 34, 32, 0.16);
+        border-radius: 11px 13px 15px 12px;
+        background:
+          linear-gradient(90deg, transparent 0 32%, rgba(31, 34, 32, 0.025) 33%, transparent 34% 66%, rgba(31, 34, 32, 0.022) 67%, transparent 68%),
+          linear-gradient(180deg, var(--paper), #f7f4eb);
+        box-shadow: 0 28px 60px rgba(38, 45, 45, 0.1);
+      }
+
+      .paper-expanded::before {
+        content: "";
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        top: 18px;
+        border-top: 1.5px dashed rgba(31, 34, 32, 0.11);
+      }
+
+      .paper-expanded textarea {
+        width: 100%;
+        height: 100%;
+        resize: none;
+        outline: none;
+        background: transparent;
+        color: rgba(31, 34, 32, 0.86);
+        font-size: 32px;
+        line-height: 1.22;
+      }
+
+      .app.paper-open .pooping {
+        display: none;
+      }
+
+      .app.paper-open .paper-expanded {
+        display: block;
+      }
+
+      .world {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+
+      .world-map {
+        width: min(142vw, 660px);
+        height: auto;
+        opacity: 0.96;
+      }
+
+      .map-country {
+        fill: transparent;
+        stroke: rgba(31, 34, 32, 0.54);
+        stroke-width: 1.05;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .map-point {
+        display: none;
+        animation: pointBreath 4.2s ease-in-out infinite;
+      }
+
+      .map-point-glow {
+        fill: url("#mapPointGlow");
+      }
+
+      .map-point-core {
+        fill: var(--blue);
+        stroke: rgba(246, 250, 250, 0.96);
+        stroke-width: 2;
+      }
+
+      .thought {
+        display: none;
+        position: relative;
+        height: 100%;
+        place-items: center;
+      }
+
+      .app.thought-open .world {
+        display: none;
+      }
+
+      .app.thought-open .thought {
+        display: grid;
+      }
+
+      .thought-paper {
+        width: min(84vw, 328px);
+        min-height: min(60svh, 520px);
+        padding: 42px 30px;
+        border: 1.5px solid rgba(31, 34, 32, 0.16);
+        border-radius: 12px 10px 15px 11px;
+        background:
+          linear-gradient(90deg, transparent 0 32%, rgba(31, 34, 32, 0.024) 33%, transparent 34% 66%, rgba(31, 34, 32, 0.022) 67%, transparent 68%),
+          linear-gradient(180deg, var(--paper), #f8f5ed);
+        box-shadow: 0 28px 58px rgba(38, 45, 45, 0.09);
+        color: rgba(31, 34, 32, 0.84);
+        font-size: 33px;
+        line-height: 1.22;
+        text-align: left;
+      }
+
+      .reaction {
+        position: absolute;
+        bottom: max(28px, env(safe-area-inset-bottom));
+        left: 50%;
+        min-width: 94px;
+        min-height: 48px;
+        border: 1px solid rgba(31, 34, 32, 0.13);
+        border-radius: 999px;
+        background: rgba(246, 250, 250, 0.56);
+        color: rgba(31, 34, 32, 0.66);
+        font-size: 25px;
+        transform: translateX(-50%);
+        backdrop-filter: blur(14px);
+      }
+
+      .flush {
+        place-items: center;
+        align-content: center;
+        gap: 58px;
+        padding-bottom: 24px;
+      }
+
+      .flush p {
+        max-width: 300px;
+        margin: 0;
+        color: rgba(31, 34, 32, 0.72);
+        font-size: 32px;
+        line-height: 1.22;
+        text-align: center;
+      }
+
+      .flush-button {
+        position: relative;
+        width: 168px;
+        height: 74px;
+        border: 1.5px solid rgba(31, 34, 32, 0.24);
+        border-radius: 41px 38px 40px 36px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(226, 233, 233, 0.88)),
+          #eef3f3;
+        box-shadow:
+          0 24px 42px rgba(38, 45, 45, 0.1),
+          inset 0 2px 0 rgba(255, 255, 255, 0.9),
+          inset 0 -8px 20px rgba(31, 34, 32, 0.07);
+      }
+
+      .flush-button::before {
+        content: "";
+        position: absolute;
+        inset: 10px 15px;
+        border: 1px solid rgba(31, 34, 32, 0.16);
+        border-radius: 31px 29px 30px 28px;
+        background: rgba(255, 255, 255, 0.42);
+      }
+
+      .flush-button span {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 80px;
+        height: 30px;
+        border: 1.5px solid rgba(31, 34, 32, 0.2);
+        border-radius: 999px;
+        background: linear-gradient(180deg, #fbfdfd, #dde7e7);
+        transform: translate(-50%, -50%);
+        box-shadow: inset 0 -4px 8px rgba(31, 34, 32, 0.08);
+      }
+
+      button:active,
+      .paper-expanded:active {
+        transform: scale(0.986);
+      }
+
+      .reaction:active {
+        transform: translateX(-50%) scale(0.986);
+      }
+
+      @keyframes pointBreath {
+        0%,
+        100% {
+          opacity: 0.72;
+        }
+
+        50% {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app" data-screen="home" id="app">
+      <section class="screen home">
+        <header class="home-top">
+          <span class="brand">P∞P</span>
+          <button class="settings-entry" id="settingsEntry">设置</button>
+        </header>
+        <div class="totals">
+          <p><span id="totalSessions">0</span>一共拉了几次</p>
+          <p><span id="totalTime">0分钟</span>一共拉了多长时间</p>
+          <p><span id="totalTogether">0人</span>已经和多少人一起拉过</p>
+        </div>
+        <button class="start" id="start">开拉</button>
+      </section>
+
+      <section class="screen settings">
+        <header class="settings-top">
+          <span>P∞P</span>
+          <button id="settingsDone">完成</button>
+        </header>
+        <div class="settings-list">
+          <button class="settings-row"><span>语言</span><span>›</span></button>
+          <button class="settings-row"><span>通知</span><span>›</span></button>
+          <button class="settings-row"><span>账号</span><span>›</span></button>
+          <button class="settings-row"><span>隐私</span><span>›</span></button>
+          <button class="settings-row"><span>关于</span><span>›</span></button>
+        </div>
+      </section>
+
+      <section class="screen session" id="session">
+        <div class="track" id="track">
+          <div class="slide">
+            <div class="pooping">
+              <button class="paper-roll" id="paperRoll" aria-label="厕纸">
+                <span class="roll-core"></span>
+                <span class="paper-sheet"><span id="paperPreview"></span></span>
+              </button>
+              <div class="lines">
+                <p id="elapsed">开拉 0分0秒</p>
+                <p>和全球 <span id="companions">0</span> 人一起拉</p>
+              </div>
+              <button class="done" id="done">已拉完</button>
+            </div>
+            <div class="paper-expanded" id="paperExpanded" role="button" tabindex="0">
+              <textarea id="paperInput" maxlength="200"></textarea>
+            </div>
+          </div>
+
+          <div class="slide">
+            <button class="world" id="world" aria-label="世界">
+              <svg class="world-map" viewBox="0 0 1000 680" aria-hidden="true">
+                <defs>
+                  <radialGradient id="mapPointGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#6b93c5" stop-opacity="0.64" />
+                    <stop offset="52%" stop-color="#7fa7d6" stop-opacity="0.18" />
+                    <stop offset="100%" stop-color="#7fa7d6" stop-opacity="0" />
+                  </radialGradient>
+                </defs>
+                <!-- COUNTRIES -->
+                <g class="map-point" id="livePoint">
+                  <circle class="map-point-glow" r="28"></circle>
+                  <circle class="map-point-core" r="4.4"></circle>
+                </g>
+              </svg>
+            </button>
+            <div class="thought" id="thought">
+              <button class="thought-paper" id="thoughtPaper"></button>
+              <button class="reaction" id="reaction">☺ 0</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen flush">
+        <p id="flushText">一些烦恼和大便一起被冲走了</p>
+        <button class="flush-button" id="flush" aria-label="冲水"><span></span></button>
+      </section>
+    </main>
+
+    <script>
+      const app = document.getElementById("app");
+      const track = document.getElementById("track");
+      const paperInput = document.getElementById("paperInput");
+      const paperPreview = document.getElementById("paperPreview");
+      const livePoint = document.getElementById("livePoint");
+      const thoughtPaper = document.getElementById("thoughtPaper");
+      const reaction = document.getElementById("reaction");
+      const totalsKey = "poop-totals";
+      const papersKey = "poop-public-papers";
+      const oneDay = 86400000;
+      let screen = "home";
+      let pane = "paper";
+      let paperOpen = false;
+      let thoughtOpen = false;
+      let startedAt = 0;
+      let now = 0;
+      let paperText = "";
+      let coords = null;
+      let thoughtIndex = 0;
+      let hStart = null;
+      let vStart = null;
+      let totals = load(totalsKey, { sessions: 0, seconds: 0, together: 0 });
+      let papers = load(papersKey, []).filter((paper) => Date.now() - paper.createdAt < oneDay);
+
+      function load(key, fallback) {
+        try {
+          return JSON.parse(localStorage.getItem(key)) || fallback;
+        } catch {
+          return fallback;
+        }
+      }
+
+      function save() {
+        localStorage.setItem(totalsKey, JSON.stringify(totals));
+        localStorage.setItem(papersKey, JSON.stringify(papers));
+      }
+
+      function totalTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}分钟`;
+        const hours = Math.floor(minutes / 60);
+        const rest = minutes % 60;
+        return rest ? `${hours}小时${rest}分钟` : `${hours}小时`;
+      }
+
+      function elapsedText(seconds) {
+        return `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
+      }
+
+      function render() {
+        app.dataset.screen = screen;
+        app.classList.toggle("paper-open", paperOpen);
+        app.classList.toggle("thought-open", thoughtOpen);
+        track.style.transform = pane === "world" ? "translateX(-50%)" : "translateX(0)";
+        document.getElementById("totalSessions").textContent = totals.sessions.toLocaleString("zh-CN");
+        document.getElementById("totalTime").textContent = totalTime(totals.seconds);
+        document.getElementById("totalTogether").textContent = `${totals.together.toLocaleString("zh-CN")}人`;
+        const elapsed = startedAt ? Math.max(0, Math.floor((now - startedAt) / 1000)) : 0;
+        document.getElementById("elapsed").textContent = `开拉 ${elapsedText(elapsed)}`;
+        paperPreview.textContent = paperText;
+        paperInput.value = paperText;
+        document.getElementById("flushText").textContent = paperText.trim()
+          ? "一些厕中奇思和大便一起被冲走了"
+          : "一些烦恼和大便一起被冲走了";
+
+        if (coords) {
+          const x = 34 + ((coords[0] + 180) / 360) * 932;
+          const y = 118 + ((90 - coords[1]) / 180) * 444;
+          livePoint.style.display = "block";
+          livePoint.setAttribute("transform", `translate(${x} ${y})`);
+        } else {
+          livePoint.style.display = "none";
+        }
+
+        const thought = papers[thoughtIndex];
+        thoughtPaper.textContent = thought ? thought.text : "";
+        reaction.textContent = thought ? `☺ ${thought.likes.toLocaleString("zh-CN")}` : "☺ 0";
+        save();
+      }
+
+      function startSession() {
+        startedAt = Date.now();
+        now = startedAt;
+        paperText = "";
+        pane = "paper";
+        paperOpen = false;
+        thoughtOpen = false;
+        screen = "session";
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              coords = [position.coords.longitude, position.coords.latitude];
+              render();
+            },
+            () => {},
+            { enableHighAccuracy: false, timeout: 4500, maximumAge: 600000 },
+          );
+        }
+        render();
+      }
+
+      function flushSession() {
+        const endedAt = Date.now();
+        const elapsed = startedAt ? Math.max(1, Math.round((endedAt - startedAt) / 1000)) : 0;
+        const text = paperText.trim();
+        if (text) {
+          papers.unshift({ id: `${endedAt}`, text, likes: 0, createdAt: endedAt });
+        }
+        totals = {
+          sessions: totals.sessions + 1,
+          seconds: totals.seconds + elapsed,
+          together: totals.together,
+        };
+        startedAt = 0;
+        paperText = "";
+        coords = null;
+        screen = "home";
+        render();
+      }
+
+      document.getElementById("settingsEntry").onclick = () => {
+        screen = "settings";
+        render();
+      };
+      document.getElementById("settingsDone").onclick = () => {
+        screen = "home";
+        render();
+      };
+      document.getElementById("start").onclick = startSession;
+      document.getElementById("done").onclick = () => {
+        paperOpen = false;
+        thoughtOpen = false;
+        screen = "flush";
+        render();
+      };
+      document.getElementById("flush").onclick = flushSession;
+      document.getElementById("paperRoll").onclick = () => {
+        paperOpen = true;
+        render();
+      };
+      document.getElementById("paperExpanded").onclick = () => {
+        paperOpen = false;
+        render();
+      };
+      paperInput.onclick = (event) => event.stopPropagation();
+      paperInput.oninput = (event) => {
+        paperText = event.target.value.slice(0, 200);
+        render();
+      };
+      document.getElementById("world").onclick = () => {
+        if (!papers.length) return;
+        thoughtIndex = Math.min(thoughtIndex, papers.length - 1);
+        thoughtOpen = true;
+        render();
+      };
+      thoughtPaper.onclick = () => {
+        thoughtOpen = false;
+        render();
+      };
+      reaction.onclick = () => {
+        const thought = papers[thoughtIndex];
+        if (!thought) return;
+        thought.likes += 1;
+        render();
+      };
+      document.getElementById("session").onpointerdown = (event) => {
+        if (paperOpen || thoughtOpen) return;
+        hStart = { x: event.clientX, y: event.clientY };
+      };
+      document.getElementById("session").onpointerup = (event) => {
+        if (!hStart || paperOpen || thoughtOpen) return;
+        const dx = event.clientX - hStart.x;
+        const dy = event.clientY - hStart.y;
+        hStart = null;
+        if (Math.abs(dx) < 42 || Math.abs(dx) < Math.abs(dy)) return;
+        pane = dx < 0 ? "world" : "paper";
+        render();
+      };
+      document.getElementById("thought").onpointerdown = (event) => {
+        vStart = event.clientY;
+      };
+      document.getElementById("thought").onpointerup = (event) => {
+        if (vStart === null || papers.length < 2) return;
+        const dy = event.clientY - vStart;
+        vStart = null;
+        if (Math.abs(dy) < 42) return;
+        thoughtIndex = dy < 0
+          ? (thoughtIndex + 1) % papers.length
+          : (thoughtIndex - 1 + papers.length) % papers.length;
+        render();
+      };
+
+      setInterval(() => {
+        if (screen === "session" || screen === "flush") {
+          now = Date.now();
+          render();
+        }
+      }, 1000);
+      render();
+    </script>
+  </body>
+</html>
